@@ -35,7 +35,7 @@ class PaddleVlLocalAdapter(OcrAdapter):
             "vl_rec_server_url": self.server_url,
         }
         if self.model_name:
-            kwargs["model_name"] = self.model_name
+            kwargs["vl_rec_model_name"] = self.model_name
 
         self._pipeline = PaddleOCRVL(**kwargs)
 
@@ -63,7 +63,7 @@ class PaddleVlLocalAdapter(OcrAdapter):
                 "concatenate_markdown_pages not available; falling back to simple join"
             )
             return "\n\n".join(
-                md.get("text", "") if isinstance(md, dict) else str(md)
+                md.get("markdown_texts", "") if isinstance(md, dict) else str(md)
                 for md in markdowns
             )
 
@@ -79,7 +79,7 @@ class PaddleVlLocalAdapter(OcrAdapter):
     def _get_markdown_text(res: Any) -> str:
         md = getattr(res, "markdown", None)
         if isinstance(md, dict):
-            return md.get("text", "") or ""
+            return md.get("markdown_texts", "") or ""
         if isinstance(md, str):
             return md
         return ""
@@ -89,4 +89,4 @@ class PaddleVlLocalAdapter(OcrAdapter):
         md = getattr(res, "markdown", None)
         if isinstance(md, dict):
             return md
-        return {"text": str(md) if md is not None else ""}
+        return {"markdown_texts": str(md) if md is not None else ""}

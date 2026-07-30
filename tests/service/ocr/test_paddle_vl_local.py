@@ -8,7 +8,7 @@ from service.ocr.paddle_vl_local import PaddleVlLocalAdapter
 
 def _make_result(text: str):
     res = MagicMock()
-    res.markdown = {"text": text}
+    res.markdown = {"markdown_texts": text, "markdown_images": {}}
     return res
 
 
@@ -78,3 +78,16 @@ def test_parse_pdf_falls_back_when_concatenate_unavailable(mock_cls):
     result = adapter.parse_pdf("/tmp/doc.pdf")
 
     assert result == "page 1\n\npage 2"
+
+
+@patch("service.ocr.paddle_vl_local.PaddleOCRVL")
+def test_model_name_passed_as_vl_rec_model_name(mock_cls):
+    mock_cls.return_value = MagicMock()
+
+    cfg = _make_config()
+    cfg.model_name = "PaddleOCR-VL-1.5-0.9B"
+    PaddleVlLocalAdapter(cfg)
+
+    kwargs = mock_cls.call_args.kwargs
+    assert kwargs["vl_rec_model_name"] == "PaddleOCR-VL-1.5-0.9B"
+    assert "model_name" not in kwargs
