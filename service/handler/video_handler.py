@@ -1,6 +1,6 @@
 import json
+import shutil
 import subprocess
-import tempfile
 from pathlib import Path
 from typing import List
 
@@ -10,12 +10,12 @@ from service.handler.base import FileHandler
 class VideoHandler(FileHandler):
     def __init__(self, settings=None):
         from libs.settings import get_settings
-        self.cfg = (settings or get_settings()).ffmpeg
-        self.video_cfg = (settings or get_settings()).video
+        resolved = settings or get_settings()
+        self.cfg = resolved.ffmpeg
+        self.video_cfg = resolved.video
 
-    def extract_images(self, file_path: str, file_id: str) -> List[str]:
-        tmpdir = tempfile.mkdtemp(prefix=f"video_{file_id}_")
-        out_pattern = Path(tmpdir) / "frame_%04d.jpg"
+    def extract_images(self, file_path: str, file_id: str, output_dir: str) -> List[str]:
+        out_pattern = Path(output_dir) / "frame_%04d.jpg"
         cmd = [
             self.cfg.path,
             "-i", file_path,
@@ -25,7 +25,7 @@ class VideoHandler(FileHandler):
         ]
         subprocess.run(cmd, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 
-        frames = sorted(str(p) for p in Path(tmpdir).glob("frame_*.jpg"))
+        frames = sorted(str(p) for p in Path(output_dir).glob("frame_*.jpg"))
         metadata = {
             "file_id": file_id,
             "source_video": file_path,
@@ -34,5 +34,5 @@ class VideoHandler(FileHandler):
                 for i, f in enumerate(frames)
             ],
         }
-        Path(tmpdir).joinpath("metadata.json").write_text(json.dumps(metadata, ensure_ascii=False))
+        Path(output_dir).joinpath("metadata.json").write_text(json.dumps(metadata, ensure_ascii=False))
         return frames
