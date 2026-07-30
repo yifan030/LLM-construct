@@ -12,3 +12,10 @@ conf/.env.prod
 
 # Local build artifacts
 llm-construct.tar
+
+# Tests
+tests/
+
+# Local tooling / agent state
+.ua/
+.superpowers/
