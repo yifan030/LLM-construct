@@ -8,10 +8,12 @@ from libs.settings import Settings
 
 
 class RedisClient:
-    def __init__(self, settings: Optional[Settings] = None):
+    def __init__(self, settings: Optional[Settings] = None, setup: bool = True):
         cfg = (settings or Settings()).redis
         self.client = redis.Redis(host=cfg.host, port=cfg.port, db=cfg.db, decode_responses=True)
         self.queue_name = cfg.queue_name
+        if setup:
+            self.client.ping()
 
     def push_task(self, payload: Dict[str, Any]):
         self.client.lpush(self.queue_name, json.dumps(payload, ensure_ascii=False))

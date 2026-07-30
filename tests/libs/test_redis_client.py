@@ -1,7 +1,18 @@
 import json
+from unittest.mock import MagicMock, patch
 
 from libs.redis_client import RedisClient
 from libs.settings import Settings
+
+
+def test_redis_client_pings_on_init():
+    with patch("libs.redis_client.redis.Redis") as MockRedis:
+        mock_client = MagicMock()
+        MockRedis.return_value = mock_client
+
+        RedisClient(Settings(), setup=True)
+
+        mock_client.ping.assert_called_once()
 
 
 def test_push_and_brpop():
