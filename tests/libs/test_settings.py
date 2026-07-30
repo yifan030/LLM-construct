@@ -5,7 +5,7 @@ from libs.settings import get_settings, Settings
 def test_settings_loads_config():
     get_settings.cache_clear()
     s = get_settings()
-    assert s.server.port == 8000
+    assert s.server.port == 8081
     assert s.redis.queue_name == "edu_construct_parse_queue"
     assert s.ocr.provider == "paddle-cloud"
 
