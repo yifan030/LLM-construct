@@ -59,3 +59,5 @@ ffmpeg:
 video:
   dedup_mode: scene
   scene_threshold: 0.05
+  hash_size: 8
+  hash_threshold: 8

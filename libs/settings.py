@@ -63,6 +63,8 @@ class FfmpegSettings(BaseSettings):
 class VideoSettings(BaseSettings):
     dedup_mode: Literal["scene", "hash", "none"] = "scene"
     scene_threshold: float = 0.05
+    hash_size: int = 8
+    hash_threshold: int = 8
 
 
 class Settings(BaseSettings):
