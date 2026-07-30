@@ -25,6 +25,15 @@ services:
       - minio_data:/data
     command: server /data --console-address ":9001"
 
+  redis:
+    container_name: llm-redis
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+
 volumes:
   mysql_data:
   minio_data:
+  redis_data:
