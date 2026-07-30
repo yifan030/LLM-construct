@@ -9,7 +9,6 @@ from sqlalchemy.orm import Session
 from core.models import EduConstructFile
 from libs.db import get_db_session
 from libs.oss_client import OssClient
-from libs.redis_client import RedisClient
 from libs.settings import get_settings
 from service.worker.scheduler import Scheduler
 

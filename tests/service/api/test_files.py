@@ -15,12 +15,10 @@ def make_app():
 
 def test_register_endpoint():
     client = make_app()
-    with patch("service.api.files.Scheduler") as MockScheduler, \
-         patch("service.api.files.get_db_session") as mock_db:
+    with patch("service.api.files.Scheduler") as MockScheduler:
         mock_scheduler = MagicMock()
         MockScheduler.return_value = mock_scheduler
         mock_session = MagicMock()
-        mock_db.return_value = iter([mock_session])
         client.app.dependency_overrides[get_db_session] = lambda: mock_session
 
         resp = client.post("/api/v1/files/register", json={
@@ -38,16 +36,14 @@ def test_register_endpoint():
 
 def test_get_status():
     client = make_app()
-    with patch("service.api.files.get_db_session") as mock_db:
-        session = MagicMock()
-        mock_db.return_value = iter([session])
-        file_record = MagicMock()
-        file_record.file_id = "f1"
-        file_record.parse_status = 0
-        file_record.parsed_text_path = None
-        session.query.return_value.filter_by.return_value.first.return_value = file_record
-        client.app.dependency_overrides[get_db_session] = lambda: session
+    session = MagicMock()
+    file_record = MagicMock()
+    file_record.file_id = "f1"
+    file_record.parse_status = 0
+    file_record.parsed_text_path = None
+    session.query.return_value.filter_by.return_value.first.return_value = file_record
+    client.app.dependency_overrides[get_db_session] = lambda: session
 
-        resp = client.get("/api/v1/files/f1")
-        assert resp.status_code == 200
-        assert resp.json()["parse_status"] == 0
+    resp = client.get("/api/v1/files/f1")
+    assert resp.status_code == 200
+    assert resp.json()["parse_status"] == 0
