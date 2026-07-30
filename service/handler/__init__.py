@@ -1,1 +1,5 @@
-# 接口文件和核心逻辑代码。*_handler.py为接口定义文件  *.interface.py为代码核心逻辑文件
+from service.handler.base import FileHandler
+from service.handler.video_handler import VideoHandler
+from service.handler.pdf_handler import PdfHandler
+
+__all__ = ["FileHandler", "VideoHandler", "PdfHandler"]
