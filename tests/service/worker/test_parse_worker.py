@@ -1,0 +1,168 @@
+from pathlib import Path
+from unittest.mock import ANY, MagicMock
+
+import pytest
+
+from libs.settings import Settings
+from service.worker.parse_worker import ParseTask, ParseWorker
+
+
+def _make_session(file_record):
+    session = MagicMock()
+    session.query.return_value.filter_by.return_value.first.return_value = file_record
+    return session
+
+
+def test_parse_video_uploads_md_and_updates_db():
+    oss = MagicMock()
+    oss.download.return_value = "/tmp/x.mp4"
+    ocr = MagicMock()
+    ocr.parse_image.return_value = "frame text"
+    video_handler = MagicMock()
+    video_handler.extract_images.return_value = ["/tmp/frame.jpg"]
+    pdf_handler = MagicMock()
+
+    db_file = MagicMock()
+    db_session = _make_session(db_file)
+
+    worker = ParseWorker(
+        settings=Settings(),
+        oss_client=oss,
+        ocr_adapter=ocr,
+        video_handler=video_handler,
+        pdf_handler=pdf_handler,
+    )
+
+    task = ParseTask(
+        file_id="f1", file_type="video", oss_path="education/video/2024/x.mp4"
+    )
+    worker.parse(task, session=db_session)
+
+    assert db_file.parse_status == 2
+    assert db_file.parsed_text_path.endswith("x_parsed/x.md")
+    assert db_file.frame_count == 1
+
+    video_handler.extract_images.assert_called_once()
+    args, _ = video_handler.extract_images.call_args
+    assert args[0] == "/tmp/x.mp4"
+    assert args[1] == "f1"
+    assert Path(args[2]).name == "frames"
+
+    ocr.parse_image.assert_called_once_with("/tmp/frame.jpg")
+    oss.upload.assert_any_call(
+        "/tmp/frame.jpg", "education/video/2024/x_parsed/frames/frame.jpg"
+    )
+    oss.upload.assert_any_call(ANY, "education/video/2024/x_parsed/x.md")
+    assert oss.upload.call_count == 2
+
+
+def test_parse_pdf():
+    oss = MagicMock()
+    oss.download.return_value = "/tmp/y.pdf"
+    ocr = MagicMock()
+    ocr.parse_image.return_value = "page text"
+    video_handler = MagicMock()
+    pdf_handler = MagicMock()
+    pdf_handler.extract_images.return_value = ["/tmp/page.jpg"]
+
+    db_file = MagicMock()
+    db_session = _make_session(db_file)
+
+    worker = ParseWorker(
+        settings=Settings(),
+        oss_client=oss,
+        ocr_adapter=ocr,
+        video_handler=video_handler,
+        pdf_handler=pdf_handler,
+    )
+
+    task = ParseTask(
+        file_id="f2", file_type="pdf", oss_path="education/pdf/2024/y.pdf"
+    )
+    worker.parse(task, session=db_session)
+
+    assert db_file.parse_status == 2
+    assert db_file.parsed_text_path.endswith("y_parsed/y.md")
+    assert db_file.frame_count == 1
+
+    pdf_handler.extract_images.assert_called_once()
+    args, _ = pdf_handler.extract_images.call_args
+    assert args[0] == "/tmp/y.pdf"
+    assert args[1] == "f2"
+    assert Path(args[2]).name == "pages"
+
+    ocr.parse_image.assert_called_once_with("/tmp/page.jpg")
+    oss.upload.assert_called_once_with(ANY, "education/pdf/2024/y_parsed/y.md")
+
+
+def test_parse_missing_file_record():
+    session = MagicMock()
+    session.query.return_value.filter_by.return_value.first.return_value = None
+
+    worker = ParseWorker(
+        settings=Settings(),
+        oss_client=MagicMock(),
+        ocr_adapter=MagicMock(),
+        video_handler=MagicMock(),
+        pdf_handler=MagicMock(),
+    )
+
+    task = ParseTask(
+        file_id="missing", file_type="video", oss_path="education/video/2024/x.mp4"
+    )
+    with pytest.raises(ValueError, match="file not found"):
+        worker.parse(task, session=session)
+
+
+def test_parse_failure_marks_status_failed_and_re_raises():
+    oss = MagicMock()
+    oss.download.return_value = "/tmp/x.mp4"
+    ocr = MagicMock()
+    ocr.parse_image.side_effect = RuntimeError("ocr down")
+    video_handler = MagicMock()
+    video_handler.extract_images.return_value = ["/tmp/frame.jpg"]
+    pdf_handler = MagicMock()
+
+    db_file = MagicMock()
+    db_session = _make_session(db_file)
+
+    worker = ParseWorker(
+        settings=Settings(),
+        oss_client=oss,
+        ocr_adapter=ocr,
+        video_handler=video_handler,
+        pdf_handler=pdf_handler,
+    )
+
+    task = ParseTask(
+        file_id="f1", file_type="video", oss_path="education/video/2024/x.mp4"
+    )
+    with pytest.raises(RuntimeError, match="ocr down"):
+        worker.parse(task, session=db_session)
+
+    assert db_file.parse_status == 3
+    assert "ocr down" in db_file.error_msg
+
+
+def test_parse_unsupported_file_type():
+    oss = MagicMock()
+    oss.download.return_value = "/tmp/z.doc"
+    db_file = MagicMock()
+    db_session = _make_session(db_file)
+
+    worker = ParseWorker(
+        settings=Settings(),
+        oss_client=oss,
+        ocr_adapter=MagicMock(),
+        video_handler=MagicMock(),
+        pdf_handler=MagicMock(),
+    )
+
+    task = ParseTask(
+        file_id="f3", file_type="doc", oss_path="education/docs/z.doc"
+    )
+    with pytest.raises(ValueError, match="unsupported file_type"):
+        worker.parse(task, session=db_session)
+
+    assert db_file.parse_status == 3
+    assert "unsupported file_type" in db_file.error_msg
