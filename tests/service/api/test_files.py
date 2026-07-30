@@ -113,11 +113,24 @@ def test_get_status():
     session = MagicMock()
     file_record = MagicMock()
     file_record.file_id = "f1"
-    file_record.parse_status = 0
+    file_record.parse_status = 1
+    file_record.parse_stage = "ocr"
+    file_record.parse_progress = 75
+    file_record.video_meta = None
     file_record.parsed_text_path = None
     session.query.return_value.filter_by.return_value.first.return_value = file_record
     client.app.dependency_overrides[get_db_session] = lambda: session
 
     resp = client.get("/api/v1/files/f1")
     assert resp.status_code == 200
-    assert resp.json()["parse_status"] == 0
+    data = resp.json()
+    assert data["parse_status"] == 1
+    assert data["parse_stage"] == "ocr"
+    assert data["parse_progress"] == 75
+    assert data["failed_frames"] is None
+
+
+def test_parse_endpoint_removed():
+    client = make_app()
+    resp = client.post("/api/v1/files/f1/parse")
+    assert resp.status_code == 404

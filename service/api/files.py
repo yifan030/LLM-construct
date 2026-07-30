@@ -15,7 +15,7 @@ from core.models import EduConstructFile
 from libs.db import get_db_session
 from libs.oss_client import OssClient
 from libs.settings import get_settings
-from service.worker.scheduler import ParseInProgressError, Scheduler
+from service.worker.scheduler import Scheduler
 
 router = APIRouter(tags=["files"])
 
@@ -129,38 +129,15 @@ def get_file(file_id: str, session: Session = Depends(get_db_session)):
         "file_name": record.file_name,
         "file_type": record.file_type,
         "parse_status": record.parse_status,
+        "parse_stage": record.parse_stage,
+        "parse_progress": record.parse_progress,
         "file_storage_path": record.file_storage_path,
         "parsed_text_path": record.parsed_text_path,
         "frame_count": record.frame_count,
+        "failed_frames": record.video_meta.failed_frames if record.video_meta else None,
         "error_msg": record.error_msg,
         "created_at": record.created_at.isoformat() if record.created_at else None,
     }
-
-
-@router.post("/files/{file_id}/parse")
-def parse_file(
-    file_id: str,
-    sync: bool = Query(False),
-    scheduler: Scheduler = Depends(get_scheduler),
-    session: Session = Depends(get_db_session),
-):
-    record = session.query(EduConstructFile).filter_by(file_id=file_id).first()
-    if not record:
-        raise HTTPException(status_code=404, detail="file not found")
-
-    if sync:
-        try:
-            scheduler.direct_parse(
-                file_id=file_id, file_type=record.file_type, oss_path=record.file_storage_path
-            )
-        except ParseInProgressError:
-            raise HTTPException(status_code=409, detail="file is already being parsed")
-        return {"file_id": file_id, "status": "completed"}
-
-    scheduler.enqueue(
-        file_id=file_id, file_type=record.file_type, oss_path=record.file_storage_path, force=True
-    )
-    return {"file_id": file_id, "status": "pending"}
 
 
 @router.get("/files/{file_id}/download")
