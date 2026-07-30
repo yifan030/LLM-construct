@@ -1,0 +1,20 @@
+services:
+  app:
+    container_name: llm-construct-question-v2
+    image: llm-construct-question:v2
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8090:8081"
+    env_file:
+      - conf/.env.prod
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8081/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
