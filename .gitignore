@@ -7,10 +7,8 @@ env/
 venv/
 .venv/
 .env
-*.log
-.DS_Store
-.idea/
-.vscode/
-*.swp
-*.swo
-*~
+conf/.env
+conf/.env.prod
+
+# Local build artifacts
+llm-construct.tar
