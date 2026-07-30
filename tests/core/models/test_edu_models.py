@@ -20,6 +20,18 @@ def test_database_client_auto_creates_tables():
         mock_create_all.assert_called_once_with(bind=mock_engine)
 
 
+def test_database_client_setup_false_does_not_create_tables():
+    with patch("libs.db_client.create_engine") as mock_create_engine, \
+         patch("libs.db_client.Base.metadata.create_all") as mock_create_all:
+        mock_engine = MagicMock()
+        mock_create_engine.return_value = mock_engine
+
+        DatabaseClient(Settings(), setup=False)
+
+        mock_create_engine.assert_called_once()
+        mock_create_all.assert_not_called()
+
+
 def test_create_tables():
     create_tables()
 

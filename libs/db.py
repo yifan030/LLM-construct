@@ -26,4 +26,4 @@ def get_db_session():
 
 def create_tables():
     from libs.db_client import DatabaseClient
-    DatabaseClient(setup=True)
+    DatabaseClient(engine=get_engine(), setup=True)
