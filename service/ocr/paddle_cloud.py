@@ -8,18 +8,19 @@ from service.ocr.base import OcrAdapter
 
 
 class PaddleCloudAdapter(OcrAdapter):
-    def __init__(self, cfg):
+    def __init__(self, cfg, client: requests.Session | None = None):
         self.base_url = cfg.base_url or cfg.job_url
         self.api_key = cfg.api_key or cfg.token
         self.model = cfg.model
+        self._client = client if client is not None else requests.Session()
 
     def _call_api(self, payload: Dict[str, Any]) -> str:
         headers = {"Authorization": f"Bearer {self.api_key}", "Content-Type": "application/json"}
-        resp = requests.post(self.base_url, json=payload, headers=headers, timeout=120)
+        resp = self._client.post(self.base_url, json=payload, headers=headers, timeout=120)
         resp.raise_for_status()
         data = resp.json()
         # 根据实际 API 响应结构调整
-        return data.get("result", "")
+        return data.get("result") or ""
 
     def parse_image(self, image_path: str) -> str:
         b64 = base64.b64encode(Path(image_path).read_bytes()).decode()
