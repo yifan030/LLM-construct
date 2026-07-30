@@ -19,6 +19,18 @@ def test_oss_client_auto_creates_bucket():
         mock_client.make_bucket.assert_called_once_with("llm-construct")
 
 
+def test_oss_client_setup_false_does_not_create_bucket():
+    with patch("libs.oss_client.Minio") as MockMinio:
+        mock_client = MagicMock()
+        mock_client.bucket_exists.return_value = False
+        MockMinio.return_value = mock_client
+
+        OssClient(Settings(), setup=False)
+
+        mock_client.bucket_exists.assert_not_called()
+        mock_client.make_bucket.assert_not_called()
+
+
 def test_oss_roundtrip():
     client = OssClient(Settings())
     with tempfile.NamedTemporaryFile(mode="w", suffix=".txt", delete=False) as f:

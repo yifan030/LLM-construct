@@ -30,7 +30,7 @@ def build_worker():
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     settings = get_settings()
-    await asyncio.to_thread(DatabaseClient, settings)
+    db_client = await asyncio.to_thread(DatabaseClient, settings)
     worker = await asyncio.to_thread(build_worker)
     redis_client = await asyncio.to_thread(RedisClient, settings)
     consumer = Consumer(settings=settings, redis_client=redis_client, worker=worker)

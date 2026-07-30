@@ -15,6 +15,16 @@ def test_redis_client_pings_on_init():
         mock_client.ping.assert_called_once()
 
 
+def test_redis_client_setup_false_does_not_ping():
+    with patch("libs.redis_client.redis.Redis") as MockRedis:
+        mock_client = MagicMock()
+        MockRedis.return_value = mock_client
+
+        RedisClient(Settings(), setup=False)
+
+        mock_client.ping.assert_not_called()
+
+
 def test_push_and_brpop():
     client = RedisClient(Settings())
     client.clear_queue()
