@@ -32,7 +32,7 @@ async def lifespan(app: FastAPI):
     settings = get_settings()
     await asyncio.to_thread(create_tables)
     worker = await asyncio.to_thread(build_worker)
-    redis_client = RedisClient(settings)
+    redis_client = await asyncio.to_thread(RedisClient, settings)
     consumer = Consumer(settings=settings, redis_client=redis_client, worker=worker)
     await asyncio.to_thread(consumer.start)
     app.state.consumer = consumer
