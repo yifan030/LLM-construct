@@ -11,5 +11,15 @@ until docker exec llm-mysql mysql -uroot -proot -e "SELECT 1" >/dev/null 2>&1; d
   sleep 1
 done
 
+echo "Waiting for Redis..."
+until docker exec llm-redis redis-cli ping | grep -q PONG; do
+  sleep 1
+done
+
+echo "Waiting for MinIO..."
+until curl -sf http://localhost:9000/minio/health/live >/dev/null 2>&1; do
+  sleep 1
+done
+
 echo "Starting application..."
 python -m service.main
