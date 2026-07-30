@@ -1,13 +1,12 @@
-import json
 import logging
 import threading
 import time
 from typing import Optional
 
+from libs.db import SessionLocal
 from libs.redis_client import RedisClient
 from libs.settings import Settings
 from service.worker.parse_worker import ParseTask, ParseWorker
-from libs.db import SessionLocal
 
 logger = logging.getLogger(__name__)
 
