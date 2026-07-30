@@ -55,8 +55,129 @@ def test_parse_video_uploads_md_and_updates_db():
     oss.upload.assert_any_call(
         "/tmp/frame.jpg", "education/video/2024/x_parsed/frames/frame.jpg"
     )
+    oss.upload.assert_any_call(
+        ANY, "education/video/2024/x_parsed/metadata.json"
+    )
     oss.upload.assert_any_call(ANY, "education/video/2024/x_parsed/x.md")
-    assert oss.upload.call_count == 2
+    assert oss.upload.call_count == 3
+
+
+def test_parse_video_uploads_frame_metadata_and_records_path(tmp_path: Path):
+    from unittest.mock import patch
+
+    oss = MagicMock()
+    oss.download.return_value = "/tmp/x.mp4"
+    ocr = MagicMock()
+    ocr.parse_image.return_value = "frame text"
+    video_handler = MagicMock()
+    video_handler.extract_images.return_value = ["/tmp/frame.jpg"]
+    pdf_handler = MagicMock()
+
+    db_file = MagicMock()
+    db_file.video_meta = None
+    db_session = _make_session(db_file)
+
+    worker = ParseWorker(
+        settings=Settings(),
+        oss_client=oss,
+        ocr_adapter=ocr,
+        video_handler=video_handler,
+        pdf_handler=pdf_handler,
+    )
+
+    task = ParseTask(
+        file_id="f1", file_type="video", oss_path="education/video/2024/x.mp4"
+    )
+    with patch("service.worker.parse_worker.tempfile.TemporaryDirectory") as mock_tmp:
+        mock_tmp.return_value.__enter__.return_value = str(tmp_path)
+        worker.parse(task, session=db_session)
+
+    oss.upload.assert_any_call(
+        str(tmp_path / "frames" / "metadata.json"),
+        "education/video/2024/x_parsed/metadata.json",
+    )
+    assert (
+        db_file.video_meta.frame_metadata_path
+        == "education/video/2024/x_parsed/metadata.json"
+    )
+
+
+def test_parse_video_populates_video_meta_from_probe(tmp_path: Path):
+    from unittest.mock import patch
+
+    oss = MagicMock()
+    oss.download.return_value = "/tmp/x.mp4"
+    ocr = MagicMock()
+    ocr.parse_image.return_value = "frame text"
+    video_handler = MagicMock()
+    video_handler.extract_images.return_value = ["/tmp/frame.jpg"]
+    video_handler.probe_video.return_value = {
+        "duration": 2430.5,
+        "resolution": "1920x1080",
+        "fps": 25,
+    }
+    pdf_handler = MagicMock()
+
+    db_file = MagicMock()
+    db_file.video_meta = None
+    db_session = _make_session(db_file)
+
+    worker = ParseWorker(
+        settings=Settings(),
+        oss_client=oss,
+        ocr_adapter=ocr,
+        video_handler=video_handler,
+        pdf_handler=pdf_handler,
+    )
+
+    task = ParseTask(
+        file_id="f1", file_type="video", oss_path="education/video/2024/x.mp4"
+    )
+    with patch("service.worker.parse_worker.tempfile.TemporaryDirectory") as mock_tmp:
+        mock_tmp.return_value.__enter__.return_value = str(tmp_path)
+        worker.parse(task, session=db_session)
+
+    assert db_file.parse_status == 2
+    assert db_file.video_meta.duration == 2430.5
+    assert db_file.video_meta.resolution == "1920x1080"
+    assert db_file.video_meta.fps == 25
+
+
+def test_parse_video_tolerates_probe_failure(tmp_path: Path):
+    from unittest.mock import patch
+
+    oss = MagicMock()
+    oss.download.return_value = "/tmp/x.mp4"
+    ocr = MagicMock()
+    ocr.parse_image.return_value = "frame text"
+    video_handler = MagicMock()
+    video_handler.extract_images.return_value = ["/tmp/frame.jpg"]
+    video_handler.probe_video.side_effect = RuntimeError("ffprobe missing")
+    pdf_handler = MagicMock()
+
+    db_file = MagicMock()
+    db_file.video_meta = None
+    db_session = _make_session(db_file)
+
+    worker = ParseWorker(
+        settings=Settings(),
+        oss_client=oss,
+        ocr_adapter=ocr,
+        video_handler=video_handler,
+        pdf_handler=pdf_handler,
+    )
+
+    task = ParseTask(
+        file_id="f1", file_type="video", oss_path="education/video/2024/x.mp4"
+    )
+    with patch("service.worker.parse_worker.tempfile.TemporaryDirectory") as mock_tmp:
+        mock_tmp.return_value.__enter__.return_value = str(tmp_path)
+        worker.parse(task, session=db_session)
+
+    assert db_file.parse_status == 2
+    assert db_file.video_meta.duration is None
+    assert db_file.video_meta.resolution is None
+    assert db_file.video_meta.fps is None
 
 
 def test_parse_pdf():
@@ -162,6 +283,11 @@ def test_parse_video_tolerates_single_ocr_failure(tmp_path: Path):
     video_handler.extract_images.return_value = [
         "/tmp/frame1.jpg", "/tmp/frame2.jpg", "/tmp/frame3.jpg"
     ]
+    video_handler.probe_video.return_value = {
+        "duration": 2430.5,
+        "resolution": "1920x1080",
+        "fps": 25,
+    }
     pdf_handler = MagicMock()
 
     db_file = MagicMock()
@@ -188,7 +314,9 @@ def test_parse_video_tolerates_single_ocr_failure(tmp_path: Path):
     assert db_file.parse_progress == 100
     assert db_file.frame_count == 3
     assert db_file.video_meta.dedup_mode == Settings().video.dedup_mode
-    assert db_file.video_meta.fps == Settings().ffmpeg.frame_rate
+    assert db_file.video_meta.fps == 25
+    assert db_file.video_meta.duration == 2430.5
+    assert db_file.video_meta.resolution == "1920x1080"
     assert db_file.video_meta.failed_frames == [
         {"index": 1, "file": "frame2.jpg", "oss_path": "education/video/2024/x_parsed/frames/frame2.jpg", "error": "ocr down"}
     ]

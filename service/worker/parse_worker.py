@@ -163,7 +163,18 @@ class ParseWorker:
             if self.settings.video.dedup_mode == "scene"
             else None
         )
-        video_meta.fps = self.settings.ffmpeg.frame_rate
+        try:
+            probe = self.video_handler.probe_video(local_file)
+        except Exception as e:
+            logger.warning("probe video failed for %s: %s", local_file, e)
+            probe = {}
+        video_meta.duration = probe.get("duration")
+        video_meta.resolution = probe.get("resolution")
+        video_meta.fps = probe.get("fps")
+
+        metadata_json_path = f"{parsed_dir}/metadata.json"
+        self.oss.upload(str(frames_dir / "metadata.json"), metadata_json_path)
+        video_meta.frame_metadata_path = metadata_json_path
         session.commit()
 
         self._set_status(
