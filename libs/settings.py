@@ -1,11 +1,10 @@
 # libs/settings.py
 from functools import lru_cache
-from pathlib import Path
-from typing import Literal, Optional
+from typing import Literal
 
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
-import yaml
+from pydantic_settings.sources import YamlConfigSettingsSource
 
 
 class ServerSettings(BaseSettings):
@@ -64,6 +63,7 @@ class VideoSettings(BaseSettings):
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
+        yaml_file="conf/config.yaml",
         env_file="conf/.env",
         env_file_encoding="utf-8",
         env_nested_delimiter="__",
@@ -78,14 +78,22 @@ class Settings(BaseSettings):
     ffmpeg: FfmpegSettings = Field(default_factory=FfmpegSettings)
     video: VideoSettings = Field(default_factory=VideoSettings)
 
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
-        config_path = Path("conf/config.yaml")
-        if config_path.exists():
-            data = yaml.safe_load(config_path.read_text(encoding="utf-8")) or {}
-            for key, value in data.items():
-                if hasattr(self, key):
-                    setattr(self, key, self.__pydantic_fields__[key].annotation(**value))
+    @classmethod
+    def settings_customise_sources(
+        cls,
+        settings_cls,
+        init_settings,
+        env_settings,
+        dotenv_settings,
+        file_secret_settings,
+    ):
+        return (
+            init_settings,
+            env_settings,
+            dotenv_settings,
+            file_secret_settings,
+            YamlConfigSettingsSource(settings_cls),
+        )
 
 
 @lru_cache
