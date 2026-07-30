@@ -1,16 +1,80 @@
 # tests/service/api/test_files.py
+from io import BytesIO
 from unittest.mock import MagicMock, patch
 
+from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 from service.api.files import router, get_db_session
-from fastapi import FastAPI
 
 
 def make_app():
     app = FastAPI()
     app.include_router(router, prefix="/api/v1")
     return TestClient(app)
+
+
+def test_upload_endpoint():
+    client = make_app()
+    with patch("service.api.files.Scheduler") as MockScheduler, patch("service.api.files.OssClient") as MockOss:
+        mock_scheduler = MagicMock()
+        MockScheduler.return_value = mock_scheduler
+        mock_oss = MagicMock()
+        MockOss.return_value = mock_oss
+        mock_session = MagicMock()
+        added = []
+        mock_session.add.side_effect = added.append
+        client.app.dependency_overrides[get_db_session] = lambda: mock_session
+
+        resp = client.post(
+            "/api/v1/files/upload",
+            files={"file": ("lecture.mp4", BytesIO(b"video data"), "video/mp4")},
+        )
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["file_id"]
+        assert data["status"] == "pending"
+
+        record = added[0]
+        assert record.file_name == "lecture.mp4"
+        assert record.file_type == "video"
+        assert record.file_size == len(b"video data")
+        assert record.file_storage_path.endswith("/lecture.mp4")
+        mock_oss.upload.assert_called_once()
+        mock_scheduler.enqueue.assert_called_once_with(
+            file_id=record.file_id, file_type="video", oss_path=record.file_storage_path
+        )
+
+
+def test_upload_sanitizes_path_traversal():
+    client = make_app()
+    with patch("service.api.files.Scheduler") as MockScheduler, patch("service.api.files.OssClient") as MockOss:
+        mock_scheduler = MagicMock()
+        MockScheduler.return_value = mock_scheduler
+        mock_oss = MagicMock()
+        MockOss.return_value = mock_oss
+        mock_session = MagicMock()
+        added = []
+        mock_session.add.side_effect = added.append
+        client.app.dependency_overrides[get_db_session] = lambda: mock_session
+
+        resp = client.post(
+            "/api/v1/files/upload",
+            files={"file": ("../../etc/passwd", BytesIO(b"bad"), "video/mp4")},
+        )
+        assert resp.status_code == 200
+        record = added[0]
+        assert record.file_name == "passwd"
+        assert record.file_storage_path.endswith("/passwd")
+
+
+def test_upload_rejects_bad_filename():
+    client = make_app()
+    resp = client.post(
+        "/api/v1/files/upload",
+        files={"file": ("../", BytesIO(b"bad"), "video/mp4")},
+    )
+    assert resp.status_code == 400
 
 
 def test_register_endpoint():
@@ -32,6 +96,16 @@ def test_register_endpoint():
         assert data["file_id"]
         assert data["status"] == "pending"
         mock_scheduler.enqueue.assert_called_once()
+
+
+def test_register_rejects_invalid_file_type():
+    client = make_app()
+    resp = client.post("/api/v1/files/register", json={
+        "file_name": "x.doc",
+        "file_type": "doc",
+        "oss_path": "education/docs/x.doc",
+    })
+    assert resp.status_code == 422
 
 
 def test_get_status():

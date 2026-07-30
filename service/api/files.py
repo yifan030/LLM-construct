@@ -1,6 +1,11 @@
 # service/api/files.py
+import os
+import re
+import shutil
+import tempfile
 import uuid
-from typing import Optional
+from pathlib import Path
+from typing import Literal, Optional
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile
 from pydantic import BaseModel
@@ -10,14 +15,17 @@ from core.models import EduConstructFile
 from libs.db import get_db_session
 from libs.oss_client import OssClient
 from libs.settings import get_settings
-from service.worker.scheduler import Scheduler
+from service.worker.scheduler import ParseInProgressError, Scheduler
 
 router = APIRouter(tags=["files"])
 
 
+_SAFE_FILENAME_RE = re.compile(r'^[^/\\<>:"|?*\x00-\x1f][^\\<>:"|?*\x00-\x1f]*$')
+
+
 class RegisterRequest(BaseModel):
     file_name: str
-    file_type: str
+    file_type: Literal["video", "pdf"]
     oss_path: str
     file_size: Optional[int] = None
     group_name: Optional[str] = None
@@ -26,6 +34,24 @@ class RegisterRequest(BaseModel):
 class FileResponse(BaseModel):
     file_id: str
     status: str
+
+
+def _safe_filename(filename: Optional[str]) -> str:
+    if not filename:
+        raise HTTPException(status_code=400, detail="filename is required")
+    name = Path(filename).name
+    if not name or name in (".", "..") or not _SAFE_FILENAME_RE.match(name):
+        raise HTTPException(status_code=400, detail="invalid filename")
+    return name
+
+
+def _derive_file_type(filename: str) -> Literal["video", "pdf", "unknown"]:
+    ext = filename.split(".")[-1].lower() if "." in filename else ""
+    if ext in {"mp4", "ts"}:
+        return "video"
+    if ext == "pdf":
+        return "pdf"
+    return "unknown"
 
 
 def get_oss_client():
@@ -44,24 +70,24 @@ def upload_file(
     scheduler: Scheduler = Depends(get_scheduler),
     session: Session = Depends(get_db_session),
 ):
-    settings = get_settings()
     file_id = str(uuid.uuid4())
-    ext = file.filename.split(".")[-1] if "." in file.filename else ""
-    oss_path = f"education/uploads/{file_id}/{file.filename}"
+    safe_name = _safe_filename(file.filename)
+    file_type = _derive_file_type(safe_name)
+    oss_path = f"education/uploads/{file_id}/{safe_name}"
 
-    content = file.file.read()
-    local_tmp = f"/tmp/{file_id}_{file.filename}"
-    with open(local_tmp, "wb") as f:
-        f.write(content)
-
-    oss_client.upload(local_tmp, oss_path)
+    with tempfile.TemporaryDirectory(prefix=f"upload_{file_id}_") as tmpdir:
+        local_tmp = Path(tmpdir) / safe_name
+        with open(local_tmp, "wb") as tmp:
+            shutil.copyfileobj(file.file, tmp, length=8192)
+        file_size = os.path.getsize(local_tmp)
+        oss_client.upload(str(local_tmp), oss_path)
 
     record = EduConstructFile(
         file_id=file_id,
-        file_name=file.filename,
-        file_type=ext.lower() if ext in {"mp4", "ts", "pdf"} else "unknown",
+        file_name=safe_name,
+        file_type=file_type,
         file_storage_path=oss_path,
-        file_size=len(content),
+        file_size=file_size,
         group_name=group_name,
     )
     session.add(record)
@@ -123,9 +149,12 @@ def parse_file(
         raise HTTPException(status_code=404, detail="file not found")
 
     if sync:
-        scheduler.direct_parse(
-            file_id=file_id, file_type=record.file_type, oss_path=record.file_storage_path
-        )
+        try:
+            scheduler.direct_parse(
+                file_id=file_id, file_type=record.file_type, oss_path=record.file_storage_path
+            )
+        except ParseInProgressError:
+            raise HTTPException(status_code=409, detail="file is already being parsed")
         return {"file_id": file_id, "status": "completed"}
 
     scheduler.enqueue(
