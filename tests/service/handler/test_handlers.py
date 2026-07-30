@@ -1,35 +1,106 @@
-import os
+import json
 import shutil
+import subprocess
 from pathlib import Path
 
 import pytest
 
+from libs.settings import Settings
 from service.handler.video_handler import VideoHandler
 from service.handler.pdf_handler import PdfHandler
-from libs.settings import Settings
 
 
-def test_video_handler_extracts_frames(tmp_path: Path):
-    if not shutil.which("ffmpeg"):
-        pytest.skip("ffmpeg not available")
-
-    handler = VideoHandler(Settings())
-    video_path = tmp_path / "sample.mp4"
-    output_dir = tmp_path / "video_out"
-    output_dir.mkdir()
-    # 用 ffmpeg 生成 1 秒测试视频
-    os.system(
-        f"ffmpeg -y -f lavfi -i testsrc=duration=1:size=320x240:rate=1 "
-        f"-pix_fmt yuv420p {video_path} >/dev/null 2>&1"
+def _make_test_video(tmp_path: Path, duration: int = 1, rate: int = 1) -> Path:
+    video = tmp_path / "sample.mp4"
+    subprocess.run(
+        [
+            "ffmpeg", "-y", "-f", "lavfi",
+            "-i", f"testsrc=duration={duration}:size=320x240:rate={rate}",
+            "-pix_fmt", "yuv420p", str(video),
+        ],
+        check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
     )
-    frames = handler.extract_images(str(video_path), file_id="v1", output_dir=str(output_dir))
+    return video
+
+
+@pytest.mark.skipif(not shutil.which("ffmpeg"), reason="ffmpeg not available")
+def test_video_handler_fps_mode(tmp_path: Path):
+    settings = Settings()
+    settings.video.dedup_mode = "none"
+    handler = VideoHandler(settings)
+
+    output_dir = tmp_path / "out"
+    output_dir.mkdir()
+    video = _make_test_video(tmp_path, duration=2, rate=1)
+
+    frames = handler.extract_images(str(video), file_id="v1", output_dir=str(output_dir))
+    assert len(frames) == 2
+    assert all(Path(f).exists() for f in frames)
+
+    metadata = json.loads((output_dir / "metadata.json").read_text(encoding="utf-8"))
+    assert metadata["dedup_mode"] == "none"
+    assert len(metadata["frames"]) == 2
+
+
+@pytest.mark.skipif(not shutil.which("ffmpeg"), reason="ffmpeg not available")
+def test_video_handler_scene_mode(tmp_path: Path):
+    settings = Settings()
+    settings.video.dedup_mode = "scene"
+    settings.video.scene_threshold = 0.05
+    handler = VideoHandler(settings)
+
+    output_dir = tmp_path / "out"
+    output_dir.mkdir()
+    video = _make_test_video(tmp_path, duration=2, rate=1)
+
+    frames = handler.extract_images(str(video), file_id="v2", output_dir=str(output_dir))
     assert len(frames) >= 1
     assert all(Path(f).exists() for f in frames)
+
+    metadata = json.loads((output_dir / "metadata.json").read_text(encoding="utf-8"))
+    assert metadata["dedup_mode"] == "scene"
+    assert "scene_score" in metadata["frames"][0]
+
+
+@pytest.mark.skipif(not shutil.which("ffmpeg"), reason="ffmpeg not available")
+def test_video_handler_hash_mode(tmp_path: Path):
+    pytest.importorskip("imagehash")
+    settings = Settings()
+    settings.video.dedup_mode = "hash"
+    settings.video.hash_size = 8
+    settings.video.hash_threshold = 8
+    handler = VideoHandler(settings)
+
+    static_img = tmp_path / "static.jpg"
+    subprocess.run(
+        [
+            "ffmpeg", "-y", "-f", "lavfi",
+            "-i", "color=c=black:s=64x64:r=1",
+            "-frames:v", "1", str(static_img),
+        ],
+        check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+    )
+    video = tmp_path / "static.mp4"
+    subprocess.run(
+        [
+            "ffmpeg", "-y", "-loop", "1", "-i", str(static_img),
+            "-c:v", "libx264", "-t", "3", "-pix_fmt", "yuv420p", "-r", "1",
+            str(video),
+        ],
+        check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+    )
+
+    output_dir = tmp_path / "out"
+    output_dir.mkdir()
+    frames = handler.extract_images(str(video), file_id="v3", output_dir=str(output_dir))
+    assert len(frames) == 1
+
+    metadata = json.loads((output_dir / "metadata.json").read_text(encoding="utf-8"))
+    assert metadata["dedup_mode"] == "hash"
 
 
 def test_pdf_handler_extracts_pages(tmp_path: Path):
     handler = PdfHandler()
-    # 创建一个极简 1 页 PDF
     pdf_path = tmp_path / "doc.pdf"
     output_dir = tmp_path / "pdf_out"
     output_dir.mkdir()
