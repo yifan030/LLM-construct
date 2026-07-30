@@ -23,6 +23,7 @@ def test_parse_video_uploads_md_and_updates_db():
     pdf_handler = MagicMock()
 
     db_file = MagicMock()
+    db_file.video_meta = None
     db_session = _make_session(db_file)
 
     worker = ParseWorker(
@@ -39,6 +40,8 @@ def test_parse_video_uploads_md_and_updates_db():
     worker.parse(task, session=db_session)
 
     assert db_file.parse_status == 2
+    assert db_file.parse_stage == "completed"
+    assert db_file.parse_progress == 100
     assert db_file.parsed_text_path.endswith("x_parsed/x.md")
     assert db_file.frame_count == 1
 
@@ -82,6 +85,8 @@ def test_parse_pdf():
     worker.parse(task, session=db_session)
 
     assert db_file.parse_status == 2
+    assert db_file.parse_stage == "completed"
+    assert db_file.parse_progress == 100
     assert db_file.parsed_text_path.endswith("y_parsed/y.md")
     assert db_file.frame_count == 1
 
@@ -124,6 +129,7 @@ def test_parse_failure_marks_status_failed_and_re_raises():
     pdf_handler = MagicMock()
 
     db_file = MagicMock()
+    db_file.video_meta = None
     db_session = _make_session(db_file)
 
     worker = ParseWorker(
@@ -137,11 +143,63 @@ def test_parse_failure_marks_status_failed_and_re_raises():
     task = ParseTask(
         file_id="f1", file_type="video", oss_path="education/video/2024/x.mp4"
     )
-    with pytest.raises(RuntimeError, match="ocr down"):
+    with pytest.raises(RuntimeError, match="OCR failed for all 1 frame"):
         worker.parse(task, session=db_session)
 
     assert db_file.parse_status == 3
-    assert "ocr down" in db_file.error_msg
+    assert db_file.parse_stage == "failed"
+    assert "OCR failed for all 1 frame" in db_file.error_msg
+
+
+def test_parse_video_tolerates_single_ocr_failure(tmp_path: Path):
+    from unittest.mock import patch
+
+    oss = MagicMock()
+    oss.download.return_value = "/tmp/x.mp4"
+    ocr = MagicMock()
+    ocr.parse_image.side_effect = ["frame one", RuntimeError("ocr down"), "frame three"]
+    video_handler = MagicMock()
+    video_handler.extract_images.return_value = [
+        "/tmp/frame1.jpg", "/tmp/frame2.jpg", "/tmp/frame3.jpg"
+    ]
+    pdf_handler = MagicMock()
+
+    db_file = MagicMock()
+    db_file.video_meta = None
+    db_session = _make_session(db_file)
+
+    worker = ParseWorker(
+        settings=Settings(),
+        oss_client=oss,
+        ocr_adapter=ocr,
+        video_handler=video_handler,
+        pdf_handler=pdf_handler,
+    )
+
+    task = ParseTask(
+        file_id="f1", file_type="video", oss_path="education/video/2024/x.mp4"
+    )
+    with patch("service.worker.parse_worker.tempfile.TemporaryDirectory") as mock_tmp:
+        mock_tmp.return_value.__enter__.return_value = str(tmp_path)
+        worker.parse(task, session=db_session)
+
+    assert db_file.parse_status == 2
+    assert db_file.parse_stage == "completed"
+    assert db_file.parse_progress == 100
+    assert db_file.frame_count == 3
+    assert db_file.video_meta.dedup_mode == Settings().video.dedup_mode
+    assert db_file.video_meta.fps == Settings().ffmpeg.frame_rate
+    assert db_file.video_meta.failed_frames == [
+        {"index": 1, "file": "frame2.jpg", "oss_path": "education/video/2024/x_parsed/frames/frame2.jpg", "error": "ocr down"}
+    ]
+
+    md_file = list(tmp_path.glob("*.md"))[0]
+    content = md_file.read_text(encoding="utf-8")
+    assert "## Frame 1" in content
+    assert "frame one" in content
+    assert "## Frame 2" not in content
+    assert "## Frame 3" in content
+    assert "frame three" in content
 
 
 def test_parse_unsupported_file_type():
@@ -165,6 +223,7 @@ def test_parse_unsupported_file_type():
         worker.parse(task, session=db_session)
 
     assert db_file.parse_status == 3
+    assert db_file.parse_stage == "failed"
     assert "unsupported file_type" in db_file.error_msg
 
 
@@ -211,6 +270,7 @@ def test_parse_re_parses_when_force_true():
     db_file = MagicMock()
     db_file.parse_status = 2
     db_file.parsed_text_path = "education/video/2024/x_parsed/x.md"
+    db_file.video_meta = None
     db_session = _make_session(db_file)
 
     worker = ParseWorker(
@@ -227,6 +287,40 @@ def test_parse_re_parses_when_force_true():
     worker.parse(task, session=db_session)
 
     assert db_file.parse_status == 2
+    assert db_file.parse_stage == "completed"
+    assert db_file.parse_progress == 100
     assert db_file.parsed_text_path.endswith("x_parsed/x.md")
     video_handler.extract_images.assert_called_once()
     oss.upload.assert_any_call(ANY, "education/video/2024/x_parsed/x.md")
+
+
+def test_parse_updates_progress_and_stage():
+    oss = MagicMock()
+    oss.download.return_value = "/tmp/x.mp4"
+    ocr = MagicMock()
+    ocr.parse_image.return_value = "frame text"
+    video_handler = MagicMock()
+    video_handler.extract_images.return_value = ["/tmp/frame.jpg"]
+    pdf_handler = MagicMock()
+
+    db_file = MagicMock()
+    db_file.video_meta = None
+    db_session = _make_session(db_file)
+
+    worker = ParseWorker(
+        settings=Settings(),
+        oss_client=oss,
+        ocr_adapter=ocr,
+        video_handler=video_handler,
+        pdf_handler=pdf_handler,
+    )
+
+    task = ParseTask(
+        file_id="f1", file_type="video", oss_path="education/video/2024/x.mp4"
+    )
+    worker.parse(task, session=db_session)
+
+    assert db_file.parse_status == 2
+    assert db_file.parse_stage == "completed"
+    assert db_file.parse_progress == 100
+    assert db_session.commit.call_count >= 5
