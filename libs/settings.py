@@ -33,9 +33,13 @@ class OssSettings(BaseSettings):
 class PaddleCloudSettings(BaseSettings):
     base_url: str = ""
     api_key: str = ""
-    job_url: str = ""
+    job_url: str = "https://paddleocr.aistudio-app.com/api/v2/ocr/jobs"
     token: str = ""
     model: str = "PaddleOCR-VL-1.6"
+    # PaddleOCR cloud API optional payload switches (see docs/superpowers/specs/...)
+    use_doc_orientation_classify: bool = False
+    use_doc_unwarping: bool = False
+    use_chart_recognition: bool = False
 
 
 class PaddleVlLocalSettings(BaseSettings):
@@ -87,6 +91,7 @@ class Settings(BaseSettings):
         dotenv_settings,
         file_secret_settings,
     ):
+        # 优先级：init / env / .env / secrets 覆盖 YAML 默认值
         return (
             init_settings,
             env_settings,

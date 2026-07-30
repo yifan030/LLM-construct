@@ -1,30 +1,51 @@
 server:
   host: 0.0.0.0
-  port: 8000
+  port: 8082
 
 database:
-  url: mysql+pymysql://root:root@localhost:3306/llm_construct?charset=utf8mb4
+  # 服务器 mysql_hugegraph 实例（端口 8306）；真实密码请在 conf/.env 中覆盖
+  # url: mysql+pymysql://root:REPLACE_WITH_ENV@127.0.0.1:8306/llm_construct?charset=utf8mb4
+  # 本地 Docker mysql 实例（端口 3306）
+  url: mysql+pymysql://root:root@127.0.0.1:3306/llm_construct?charset=utf8mb4
 
 redis:
-  host: localhost
+  # 服务器 redis 实例（端口 8369），无密码
+  # host: 127.0.0.1
+  # port: 8369
+  # db: 10
+  # 本地 Docker redis 实例（端口 6379），无密码
+  host: 127.0.0.1
   port: 6379
   db: 0
   queue_name: edu_construct_parse_queue
 
 oss:
-  endpoint: http://localhost:9000
+  # 服务器 minio-oss 实例（API 端口 8999）；真实 AK/SK 请在 conf/.env 中覆盖
+  # endpoint: http://127.0.0.1:8999
+  # access_key: REPLACE_WITH_ENV
+  # secret_key: REPLACE_WITH_ENV
+  # 本地 Docker minio 实例（API 端口 9000）
+  endpoint: http://127.0.0.1:9000
   access_key: minioadmin
   secret_key: minioadmin
   bucket_name: llm-construct
 
 ocr:
+  # 默认使用 PaddleOCR 云 API；真实 token 请在 conf/.env 中覆盖
+  # 如需切换到本地 paddleocr-vlm-server 容器，改为 provider: paddle-vl-local
   provider: paddle-cloud
   paddle_cloud:
+    # 同步 /layout-parsing 端点（当前未使用）
     base_url: ""
     api_key: ""
+    # 异步 /api/v2/ocr/jobs 端点
     job_url: "https://paddleocr.aistudio-app.com/api/v2/ocr/jobs"
-    token: ""
+    token: "REPLACE_WITH_ENV"
     model: "PaddleOCR-VL-1.6"
+    # 对应 PaddleOCR 云 API optionalPayload 中的功能开关
+    use_doc_orientation_classify: false
+    use_doc_unwarping: false
+    use_chart_recognition: false
   paddle_vl_local:
     server_url: ""
     device: "gpu:0"
