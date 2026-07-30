@@ -4,7 +4,7 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 
-from libs.db import create_tables
+from libs.db_client import DatabaseClient
 from libs.oss_client import OssClient
 from libs.redis_client import RedisClient
 from libs.settings import get_settings
@@ -30,7 +30,7 @@ def build_worker():
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     settings = get_settings()
-    await asyncio.to_thread(create_tables)
+    await asyncio.to_thread(DatabaseClient, settings)
     worker = await asyncio.to_thread(build_worker)
     redis_client = await asyncio.to_thread(RedisClient, settings)
     consumer = Consumer(settings=settings, redis_client=redis_client, worker=worker)
