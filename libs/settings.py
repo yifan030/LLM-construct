@@ -45,6 +45,8 @@ class PaddleCloudSettings(BaseSettings):
 class PaddleVlLocalSettings(BaseSettings):
     server_url: str = ""
     device: str = "gpu:0"
+    pipeline_version: str = "v1.5"
+    model_name: str = ""
 
 
 class OcrSettings(BaseSettings):

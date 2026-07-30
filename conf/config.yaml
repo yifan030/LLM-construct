@@ -47,8 +47,10 @@ ocr:
     use_doc_unwarping: false
     use_chart_recognition: false
   paddle_vl_local:
-    server_url: ""
+    server_url: "http://127.0.0.1:8128/v1"
     device: "gpu:0"
+    pipeline_version: "v1.5"
+    model_name: ""
 
 ffmpeg:
   path: ffmpeg
