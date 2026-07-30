@@ -60,7 +60,7 @@ paddleocr genai_server \
 
 1. 调用 `self._pipeline.predict(image_path)`。
 2. 遍历返回结果，从每个结果对象的 `res.markdown` 中提取文本：
-   - 若 `markdown` 为 dict，取 `markdown.get("text")`；
+   - 若 `markdown` 为 dict，取 `markdown.get("markdown_texts")`（PaddleOCR/PaddleX 3.4.0 的 markdown dict 键为 `markdown_texts`）；
    - 若 `markdown` 为 str，直接使用；
    - 其他类型忽略。
 3. 将多段 markdown 文本按 `\n\n` 拼接为单个字符串。
@@ -69,7 +69,7 @@ paddleocr genai_server \
 ### 3.2 `parse_pdf(pdf_path)`
 
 1. 调用 `self._pipeline.predict(pdf_path)`。
-2. 收集每一页结果对象的 `res.markdown`，按与 `parse_image` 相同的方式提取文本。
+2. 收集每一页结果对象的 `res.markdown` dict，取其 `markdown_texts` 键提取文本（与 `parse_image` 相同的方式）。
 3. 使用 `self._pipeline.concatenate_markdown_pages(markdown_list)` 合并跨页 markdown，避免生成多个独立 `.md` 文件。
 4. 返回合并后的 markdown 文本；无内容时返回空字符串。
 
