@@ -11,7 +11,7 @@ from libs.settings import Settings
 
 
 class OssClient:
-    def __init__(self, settings: Optional[Settings] = None):
+    def __init__(self, settings: Optional[Settings] = None, setup: bool = True):
         cfg = (settings or Settings()).oss
         parsed = urlparse(cfg.endpoint)
         self.bucket = cfg.bucket_name
@@ -21,6 +21,8 @@ class OssClient:
             secret_key=cfg.secret_key,
             secure=parsed.scheme == "https",
         )
+        if setup:
+            self.ensure_bucket()
 
     def ensure_bucket(self):
         if not self.client.bucket_exists(self.bucket):
