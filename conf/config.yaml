@@ -55,6 +55,7 @@ ffmpeg:
   frame_rate: 1
   output_format: jpg
   quality: 2
+  ffprobe_path: ffprobe
 
 video:
   dedup_mode: scene

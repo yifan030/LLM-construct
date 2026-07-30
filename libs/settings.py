@@ -55,6 +55,7 @@ class OcrSettings(BaseSettings):
 
 class FfmpegSettings(BaseSettings):
     path: str = "ffmpeg"
+    ffprobe_path: str = "ffprobe"
     frame_rate: int = 1
     output_format: str = "jpg"
     quality: int = 2
