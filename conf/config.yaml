@@ -1,0 +1,40 @@
+server:
+  host: 0.0.0.0
+  port: 8000
+
+database:
+  url: mysql+pymysql://root:root@localhost:3306/llm_construct?charset=utf8mb4
+
+redis:
+  host: localhost
+  port: 6379
+  db: 0
+  queue_name: edu_construct_parse_queue
+
+oss:
+  endpoint: http://localhost:9000
+  access_key: minioadmin
+  secret_key: minioadmin
+  bucket_name: llm-construct
+
+ocr:
+  provider: paddle-cloud
+  paddle_cloud:
+    base_url: ""
+    api_key: ""
+    job_url: "https://paddleocr.aistudio-app.com/api/v2/ocr/jobs"
+    token: ""
+    model: "PaddleOCR-VL-1.6"
+  paddle_vl_local:
+    server_url: ""
+    device: "gpu:0"
+
+ffmpeg:
+  path: ffmpeg
+  frame_rate: 1
+  output_format: jpg
+  quality: 2
+
+video:
+  dedup_mode: scene
+  scene_threshold: 0.05
