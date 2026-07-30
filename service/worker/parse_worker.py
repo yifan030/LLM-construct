@@ -40,6 +40,13 @@ class ParseWorker:
         if not file_record:
             raise ValueError(f"file not found: {task.file_id}")
 
+        if (
+            not task.force
+            and file_record.parse_status == 2
+            and file_record.parsed_text_path
+        ):
+            return
+
         file_record.parse_status = 1
         session.commit()
 

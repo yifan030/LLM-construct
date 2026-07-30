@@ -1,9 +1,11 @@
-import json
-
 from libs.db import SessionLocal
 from libs.redis_client import RedisClient
 from libs.settings import Settings
 from service.worker.parse_worker import ParseTask, ParseWorker
+
+
+class ParseInProgressError(RuntimeError):
+    """Raised when a parse is already running for the same file."""
 
 
 class Scheduler:
@@ -31,5 +33,11 @@ class Scheduler:
         if self.worker is None:
             raise RuntimeError("worker not configured for direct parse")
         task = ParseTask(file_id=file_id, file_type=file_type, oss_path=oss_path, force=force)
-        with SessionLocal() as session:
-            self.worker.parse(task, session=session)
+        lock_key = f"lock:parse:{file_id}"
+        if not self.redis.acquire_lock(lock_key, ttl=600):
+            raise ParseInProgressError(file_id)
+        try:
+            with SessionLocal() as session:
+                self.worker.parse(task, session=session)
+        finally:
+            self.redis.release_lock(lock_key)

@@ -166,3 +166,67 @@ def test_parse_unsupported_file_type():
 
     assert db_file.parse_status == 3
     assert "unsupported file_type" in db_file.error_msg
+
+
+def test_parse_skips_when_already_parsed_and_force_false():
+    oss = MagicMock()
+    ocr = MagicMock()
+    video_handler = MagicMock()
+    pdf_handler = MagicMock()
+
+    db_file = MagicMock()
+    db_file.parse_status = 2
+    db_file.parsed_text_path = "education/video/2024/x_parsed/x.md"
+    db_session = _make_session(db_file)
+
+    worker = ParseWorker(
+        settings=Settings(),
+        oss_client=oss,
+        ocr_adapter=ocr,
+        video_handler=video_handler,
+        pdf_handler=pdf_handler,
+    )
+
+    task = ParseTask(
+        file_id="f1", file_type="video", oss_path="education/video/2024/x.mp4", force=False
+    )
+    worker.parse(task, session=db_session)
+
+    assert db_file.parse_status == 2
+    oss.download.assert_not_called()
+    video_handler.extract_images.assert_not_called()
+    ocr.parse_image.assert_not_called()
+    oss.upload.assert_not_called()
+
+
+def test_parse_re_parses_when_force_true():
+    oss = MagicMock()
+    oss.download.return_value = "/tmp/x.mp4"
+    ocr = MagicMock()
+    ocr.parse_image.return_value = "frame text"
+    video_handler = MagicMock()
+    video_handler.extract_images.return_value = ["/tmp/frame.jpg"]
+    pdf_handler = MagicMock()
+
+    db_file = MagicMock()
+    db_file.parse_status = 2
+    db_file.parsed_text_path = "education/video/2024/x_parsed/x.md"
+    db_session = _make_session(db_file)
+
+    worker = ParseWorker(
+        settings=Settings(),
+        oss_client=oss,
+        ocr_adapter=ocr,
+        video_handler=video_handler,
+        pdf_handler=pdf_handler,
+    )
+
+    task = ParseTask(
+        file_id="f1", file_type="video", oss_path="education/video/2024/x.mp4", force=True
+    )
+    worker.parse(task, session=db_session)
+
+    assert db_file.parse_status == 2
+    assert db_file.parsed_text_path.endswith("x_parsed/x.md")
+    video_handler.extract_images.assert_called_once()
+    oss.upload.assert_any_call(ANY, "education/video/2024/x_parsed/x.md")
