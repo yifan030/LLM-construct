@@ -100,7 +100,7 @@ REDIS__QUEUE_NAME=edu_construct_parse_queue_v2
 OSS__ENDPOINT=http://host.docker.internal:8999
 OSS__ACCESS_KEY=<真实 AK>
 OSS__SECRET_KEY=<真实 SK>
-OSS__BUCKET_NAME=llm-construct-v2
+OSS__BUCKET_NAME=llm-construct
 
 OCR__PROVIDER=paddle-cloud
 OCR__PADDLE_CLOUD__JOB_URL=https://paddleocr.aistudio-app.com/api/v2/ocr/jobs
@@ -119,7 +119,7 @@ VIDEO__DEDUP_MODE=scene
 VIDEO__SCENE_THRESHOLD=0.05
 ```
 
-> `REDIS__DB=10` 与 `OSS__BUCKET_NAME=llm-construct-v2` 是为了避免与现有 `llm-construct-1` 的任务队列和存储桶冲突。
+> `REDIS__DB=10` 与 `REDIS__QUEUE_NAME=edu_construct_parse_queue_v2` 是为了避免与现有 `llm-construct-1` 的任务队列冲突；MinIO bucket 沿用旧版本的 `llm-construct`，由 `OssClient` 自动保证 bucket 存在。
 
 ### 3.3 改造 `Dockerfile`
 
@@ -208,6 +208,7 @@ conf/.env.prod
 - 对外只暴露 `8090`；中间件端口已存在且不应再额外暴露。
 - 如需公网访问，建议在现有 Nginx（如 `kg-nginx`）上反代到 `127.0.0.1:8090`，并配置 HTTPS。
 - 日志持久化：可将容器 `/app/logs` 挂载到宿主机目录，避免重启丢失。
+- MinIO bucket 与旧版本 `llm-construct-1` 共用 `llm-construct`。虽然文件名基于 UUID，冲突概率低，但仍需注意两个版本同时运行时的文件覆盖风险。
 
 ---
 
