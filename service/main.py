@@ -1,3 +1,4 @@
+import asyncio
 import logging
 from contextlib import asynccontextmanager
 
@@ -10,9 +11,8 @@ from libs.settings import get_settings
 from service.api.files import router
 from service.handler import VideoHandler, PdfHandler
 from service.ocr import create_ocr_adapter
-from service.worker import Consumer, ParseWorker, Scheduler
+from service.worker import Consumer, ParseWorker
 
-logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 
@@ -30,15 +30,16 @@ def build_worker():
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     settings = get_settings()
-    create_tables()
-    worker = build_worker()
-    consumer = Consumer(settings=settings, worker=worker)
-    consumer.start()
+    await asyncio.to_thread(create_tables)
+    worker = await asyncio.to_thread(build_worker)
+    redis_client = RedisClient(settings)
+    consumer = Consumer(settings=settings, redis_client=redis_client, worker=worker)
+    await asyncio.to_thread(consumer.start)
     app.state.consumer = consumer
     app.state.worker = worker
     logger.info("application startup complete")
     yield
-    consumer.stop()
+    await asyncio.to_thread(consumer.stop)
     logger.info("application shutdown complete")
 
 
@@ -53,5 +54,7 @@ def health():
 
 if __name__ == "__main__":
     import uvicorn
+    if not logging.getLogger().handlers:
+        logging.basicConfig(level=logging.INFO)
     settings = get_settings()
     uvicorn.run("service.main:app", host=settings.server.host, port=settings.server.port, reload=True)
