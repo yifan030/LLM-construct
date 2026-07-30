@@ -44,6 +44,8 @@ def test_crud_file_and_meta():
             file_id=file_id,
             file_name="demo.mp4",
             file_type="video",
+            parse_progress=50,
+            parse_stage="extracting_frames",
             file_storage_path=f"education/uploads/{file_id}/demo.mp4",
             file_size=1024,
         )
@@ -57,10 +59,14 @@ def test_crud_file_and_meta():
             fps=1,
             scene_threshold=0.05,
             dedup_mode="scene",
+            failed_frames=[{"index": 1, "file": "frame_0002.jpg", "error": "ocr timeout"}],
         )
         session.add(m)
         session.commit()
 
         found = session.query(EduConstructFile).filter_by(file_id=file_id).first()
         assert found.parse_status == 0
+        assert found.parse_progress == 50
+        assert found.parse_stage == "extracting_frames"
         assert found.video_meta.duration == 120.5
+        assert found.video_meta.failed_frames[0]["error"] == "ocr timeout"

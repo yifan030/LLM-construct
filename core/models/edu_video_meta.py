@@ -1,4 +1,6 @@
-from sqlalchemy import BIGINT, Float, Integer, String, Text, DateTime, ForeignKey, UniqueConstraint
+from typing import Optional
+
+from sqlalchemy import BIGINT, Float, Integer, String, Text, DateTime, ForeignKey, UniqueConstraint, JSON
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from core.models.base import Base, TimestampMixin
@@ -16,6 +18,7 @@ class EduVideoMeta(Base, TimestampMixin):
     fps: Mapped[int] = mapped_column(Integer, nullable=True)
     scene_threshold: Mapped[float] = mapped_column(Float, nullable=True)
     dedup_mode: Mapped[str] = mapped_column(String(50), nullable=True)
+    failed_frames: Mapped[Optional[list]] = mapped_column(JSON, nullable=True)
     frame_metadata_path: Mapped[str] = mapped_column(Text, nullable=True)
 
     file: Mapped["EduConstructFile"] = relationship(

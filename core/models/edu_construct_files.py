@@ -1,3 +1,5 @@
+from typing import Optional
+
 from sqlalchemy import BIGINT, Integer, String, Text, DateTime, Index
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -12,6 +14,8 @@ class EduConstructFile(Base, TimestampMixin):
     file_name: Mapped[str] = mapped_column(String(500), nullable=False)
     file_type: Mapped[str] = mapped_column(String(100), nullable=False)
     parse_status: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    parse_progress: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    parse_stage: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
     file_storage_path: Mapped[str] = mapped_column(String(1000), nullable=False)
     file_size: Mapped[int] = mapped_column(BIGINT, nullable=True)
     group_name: Mapped[str] = mapped_column(String(200), nullable=True)
