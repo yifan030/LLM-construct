@@ -1,8 +1,23 @@
 import uuid
+from unittest.mock import MagicMock, patch
 
 from libs.db import engine, create_tables
+from libs.db_client import DatabaseClient
+from libs.settings import Settings
 from core.models import EduConstructFile, EduVideoMeta
 from sqlalchemy.orm import Session
+
+
+def test_database_client_auto_creates_tables():
+    with patch("libs.db_client.create_engine") as mock_create_engine, \
+         patch("libs.db_client.Base.metadata.create_all") as mock_create_all:
+        mock_engine = MagicMock()
+        mock_create_engine.return_value = mock_engine
+
+        DatabaseClient(Settings(), setup=True)
+
+        mock_create_engine.assert_called_once()
+        mock_create_all.assert_called_once_with(bind=mock_engine)
 
 
 def test_create_tables():

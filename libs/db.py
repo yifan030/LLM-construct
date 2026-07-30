@@ -25,5 +25,5 @@ def get_db_session():
 
 
 def create_tables():
-    from core.models.base import Base
-    Base.metadata.create_all(bind=engine)
+    from libs.db_client import DatabaseClient
+    DatabaseClient(setup=True)
