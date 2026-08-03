@@ -1,3 +1,5 @@
+import os
+
 import pytest
 
 from libs.db import create_tables
@@ -8,6 +10,8 @@ from libs.settings import Settings
 
 @pytest.fixture(scope="session", autouse=True)
 def init_database():
+    if os.getenv("SKIP_DB_INIT"):
+        return
     create_tables()
 
 
