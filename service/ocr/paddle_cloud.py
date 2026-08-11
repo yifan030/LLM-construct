@@ -53,7 +53,21 @@ class PaddleCloudAdapter(OcrAdapter):
         headers = {"Authorization": f"bearer {self.api_key}"}
         data = {"model": self.model, "optionalPayload": self.optional_payload}
         files = {"file": (path.name, BytesIO(path.read_bytes()))}
+        logger.info(
+            "PaddleCloud OCR submitting job: url=%s model=%s optionalPayload=%s file=%s size=%s",
+            self.job_url,
+            self.model,
+            self.optional_payload,
+            path.name,
+            path.stat().st_size,
+        )
         resp = self._client.post(self.job_url, headers=headers, data=data, files=files, timeout=120)
+        if not resp.ok:
+            logger.error(
+                "PaddleCloud OCR submit failed: status=%s body=%s",
+                resp.status_code,
+                resp.text,
+            )
         resp.raise_for_status()
         result = self._extract(resp.json(), "data") or {}
         job_id = result.get("jobId")

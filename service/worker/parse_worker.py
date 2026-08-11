@@ -190,7 +190,12 @@ class ParseWorker:
             self.oss.upload(frame_path, oss_frame_path)
 
             try:
-                text = self.ocr.parse_image(frame_path)
+                pages = self.ocr.predict_markdown(
+                    frame_path,
+                    oss_client=self.oss,
+                    oss_prefix=f"education/ocr_images/{file_id}/frames/{i}",
+                )
+                text = pages[0]["markdown"] if pages else ""
             except Exception as e:
                 logger.warning(
                     "OCR failed for frame %s (%d/%d): %s",
@@ -256,7 +261,12 @@ class ParseWorker:
 
         page_texts: List[str] = []
         for i, page_path in enumerate(pages):
-            text = self.ocr.parse_image(page_path)
+            pages_result = self.ocr.predict_markdown(
+                page_path,
+                oss_client=self.oss,
+                oss_prefix=f"education/ocr_images/{file_id}/pages/{i}",
+            )
+            text = pages_result[0]["markdown"] if pages_result else ""
             page_texts.append(f"## Page {i + 1}\n\n{text}\n")
 
         md_content = "\n".join(page_texts)

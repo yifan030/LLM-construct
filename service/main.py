@@ -9,6 +9,7 @@ from libs.oss_client import OssClient
 from libs.redis_client import RedisClient
 from libs.settings import get_settings
 from service.api.files import router
+from service.api.construct_question import construct_question_router
 from service.handler import VideoHandler, PdfHandler
 from service.ocr import create_ocr_adapter
 from service.worker import Consumer, ParseWorker
@@ -45,6 +46,7 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="llm-construct-question", lifespan=lifespan)
 app.include_router(router, prefix="/api/v1")
+app.include_router(construct_question_router, prefix="/api/v1")
 
 
 @app.get("/health")
