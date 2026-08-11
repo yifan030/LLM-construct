@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 set -e
 
-# 切换到项目根目录
-cd "$(dirname "$0")/.."
+# 切换到项目根目录（使用 BASH_SOURCE 兼容 source 方式执行）
+cd "$(dirname "${BASH_SOURCE[0]}")/.."
 
 # 加载环境变量获取端口
 if [ -f conf/.env.prod ]; then

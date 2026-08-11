@@ -17,3 +17,9 @@ pyyaml>=6.0.1
 Pillow>=10.0.0
 imagehash>=4.3.1
 paddleocr>=3.4.0
+
+# PaddleOCR-VL 本地 OCR 依赖
+# 当前项目通过 vllm-server 调用同服务器上另一个容器里的 OCR 服务，CPU 版 paddlepaddle 即可
+# 如需在当前容器里用 GPU 跑 OCR 模型，再换成 paddlepaddle-gpu
+paddlepaddle>=3.0.0
+paddlex[ocr,genai-client]>=3.0.0

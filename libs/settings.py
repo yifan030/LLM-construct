@@ -20,6 +20,7 @@ class RedisSettings(BaseSettings):
     host: str = "localhost"
     port: int = 6379
     db: int = 0
+    password: str = ""
     queue_name: str = "edu_construct_parse_queue"
 
 
@@ -28,6 +29,8 @@ class OssSettings(BaseSettings):
     access_key: str = "minioadmin"
     secret_key: str = "minioadmin"
     bucket_name: str = "llm-construct"
+    external_endpoint: str = ""  # 外网访问地址，不为空时替换 presigned URL 中的 host:port
+    url_style: Literal["presigned", "public"] = "public"  # public=永久直链（需 bucket 公开读）
 
 
 class PaddleCloudSettings(BaseSettings):

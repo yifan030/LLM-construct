@@ -29,23 +29,27 @@ oss:
   access_key: minioadmin
   secret_key: minioadmin
   bucket_name: llm-construct
+  # 外网访问地址（可选），不为空时将 presigned URL 中的 host:port 替换为此地址
+  # external_endpoint: http://202.107.249.39:50087
+  # 链接模式：presigned=预签名（有过期时间） public=永久直链（需 bucket 设为公开读）
+  # url_style: presigned
 
 ocr:
   # 默认使用 PaddleOCR 云 API；真实 token 请在 conf/.env 中覆盖
   # 如需切换到本地 paddleocr-vlm-server 容器，改为 provider: paddle-vl-local
-  provider: paddle-cloud
-  paddle_cloud:
-    # 同步 /layout-parsing 端点（当前未使用）
-    base_url: ""
-    api_key: ""
-    # 异步 /api/v2/ocr/jobs 端点
-    job_url: "https://paddleocr.aistudio-app.com/api/v2/ocr/jobs"
-    token: "REPLACE_WITH_ENV"
-    model: "PaddleOCR-VL-1.6"
-    # 对应 PaddleOCR 云 API optionalPayload 中的功能开关
-    use_doc_orientation_classify: false
-    use_doc_unwarping: false
-    use_chart_recognition: false
+  provider: paddle-vl-local
+  # paddle_cloud:
+  #   # 同步 /layout-parsing 端点（当前未使用）
+  #   base_url: ""
+  #   api_key: ""
+  #   # 异步 /api/v2/ocr/jobs 端点
+  #   job_url: "https://paddleocr.aistudio-app.com/api/v2/ocr/jobs"
+  #   token: "REPLACE_WITH_ENV"
+  #   model: "PaddleOCR-VL-1.6"
+  #   # 对应 PaddleOCR 云 API optionalPayload 中的功能开关
+  #   use_doc_orientation_classify: false
+  #   use_doc_unwarping: false
+  #   use_chart_recognition: false
   paddle_vl_local:
     server_url: "http://127.0.0.1:8128/v1"
     device: "gpu:0"

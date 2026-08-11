@@ -1,15 +1,15 @@
 #!/usr/bin/env bash
 set -e
 
-# 切换到项目根目录
-cd "$(dirname "$0")/.."
+# 切换到项目根目录（使用 BASH_SOURCE 兼容 source 方式执行）
+cd "$(dirname "${BASH_SOURCE[0]}")/.."
 
 # 加载环境变量
-if [ -f conf/.env.prod ]; then
-    echo "Loading conf/.env.prod..."
-    export $(grep -v '^#' conf/.env.prod | xargs)
+if [ -f conf/.env ]; then
+    echo "Loading conf/.env..."
+    export $(grep -v '^#' conf/.env | xargs)
 else
-    echo "Warning: conf/.env.prod not found, using default settings"
+    echo "Warning: conf/.env not found, using default settings"
 fi
 
 PORT=${SERVER__PORT:-8083}

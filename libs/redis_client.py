@@ -10,7 +10,10 @@ from libs.settings import Settings
 class RedisClient:
     def __init__(self, settings: Optional[Settings] = None, setup: bool = True):
         cfg = (settings or Settings()).redis
-        self.client = redis.Redis(host=cfg.host, port=cfg.port, db=cfg.db, decode_responses=True)
+        kwargs = {"host": cfg.host, "port": cfg.port, "db": cfg.db, "decode_responses": True}
+        if cfg.password:
+            kwargs["password"] = cfg.password
+        self.client = redis.Redis(**kwargs)
         self.queue_name = cfg.queue_name
         if setup:
             self.client.ping()
