@@ -51,6 +51,8 @@ def _derive_file_type(filename: str) -> Literal["video", "pdf", "unknown"]:
         return "video"
     if ext == "pdf":
         return "pdf"
+    if ext in {"jpg", "jpeg", "png"}:
+        return "image"
     return "unknown"
 
 
