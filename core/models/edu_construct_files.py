@@ -19,6 +19,8 @@ class EduConstructFile(Base, TimestampMixin):
     file_storage_path: Mapped[str] = mapped_column(String(1000), nullable=False)
     file_size: Mapped[int] = mapped_column(BIGINT, nullable=True)
     group_name: Mapped[str] = mapped_column(String(200), nullable=True)
+    category: Mapped[Optional[str]] = mapped_column(String(20), nullable=True)
+    paper_file_id: Mapped[Optional[str]] = mapped_column(String(200), nullable=True)
     parsed_text_path: Mapped[str] = mapped_column(String(1000), nullable=True)
     frame_count: Mapped[int] = mapped_column(Integer, nullable=True)
     error_msg: Mapped[str] = mapped_column(Text, nullable=True)
@@ -31,5 +33,6 @@ class EduConstructFile(Base, TimestampMixin):
     __table_args__ = (
         Index("idx_parse_status", "parse_status"),
         Index("idx_group_name", "group_name"),
+        Index("idx_category", "category"),
         Index("idx_created_at", "created_at"),
     )
