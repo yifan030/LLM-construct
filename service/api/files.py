@@ -25,10 +25,12 @@ _SAFE_FILENAME_RE = re.compile(r'^[^/\\<>:"|?*\x00-\x1f][^\\<>:"|?*\x00-\x1f]*$'
 
 class RegisterRequest(BaseModel):
     file_name: str
-    file_type: Literal["video", "pdf"]
+    file_type: Literal["video", "pdf", "image"]
     oss_path: str
     file_size: Optional[int] = None
     group_name: Optional[str] = None
+    category: Optional[str] = None
+    paper_file_id: Optional[str] = None
 
 
 class FileResponse(BaseModel):
@@ -45,7 +47,7 @@ def _safe_filename(filename: Optional[str]) -> str:
     return name
 
 
-def _derive_file_type(filename: str) -> Literal["video", "pdf", "unknown"]:
+def _derive_file_type(filename: str) -> Literal["video", "pdf", "image", "unknown"]:
     ext = filename.split(".")[-1].lower() if "." in filename else ""
     if ext in {"mp4", "ts"}:
         return "video"
@@ -64,18 +66,35 @@ def get_scheduler():
     return Scheduler(get_settings())
 
 
+_CATEGORIES = {"paper", "answer", "answer_sheet"}
+
+
 @router.post("/files/upload", response_model=FileResponse)
 def upload_file(
     file: UploadFile = File(...),
     group_name: Optional[str] = Form(None),
+    category: Optional[str] = Form(None),
+    paper_file_id: Optional[str] = Form(None),
     oss_client: OssClient = Depends(get_oss_client),
     scheduler: Scheduler = Depends(get_scheduler),
     session: Session = Depends(get_db_session),
 ):
+    if category is None:
+        category = "paper"
+    if category not in _CATEGORIES:
+        raise HTTPException(status_code=400, detail=f"invalid category: {category}")
+    if category in {"answer", "answer_sheet"} and not paper_file_id:
+        raise HTTPException(status_code=400, detail=f"{category} 需要 paper_file_id")
+
     file_id = str(uuid.uuid4())
     safe_name = _safe_filename(file.filename)
     file_type = _derive_file_type(safe_name)
-    oss_path = f"education/uploads/{file_id}/{safe_name}"
+
+    if category == "paper":
+        base = f"education/uploads/paper/{file_id}"
+    else:
+        base = f"education/uploads/{category}/{paper_file_id}/{file_id}"
+    oss_path = f"{base}/{safe_name}"
 
     with tempfile.TemporaryDirectory(prefix=f"upload_{file_id}_") as tmpdir:
         local_tmp = Path(tmpdir) / safe_name
@@ -91,6 +110,8 @@ def upload_file(
         file_storage_path=oss_path,
         file_size=file_size,
         group_name=group_name,
+        category=category,
+        paper_file_id=paper_file_id,
     )
     session.add(record)
     session.commit()
@@ -113,6 +134,8 @@ def register_file(
         file_storage_path=req.oss_path,
         file_size=req.file_size,
         group_name=req.group_name,
+        category=req.category,
+        paper_file_id=req.paper_file_id,
     )
     session.add(record)
     session.commit()
