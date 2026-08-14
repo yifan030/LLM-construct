@@ -25,9 +25,9 @@ RUN mkdir -p /home/app && chown -R app:app /home/app
 
 USER app
 
-EXPOSE 8081
+EXPOSE 8083
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
-  CMD curl -f http://localhost:8081/health || exit 1
+  CMD curl -f http://localhost:8083/health || exit 1
 
-CMD ["gunicorn", "-w", "2", "-k", "uvicorn.workers.UvicornWorker", "-b", "0.0.0.0:8081", "service.main:app"]
+CMD ["gunicorn", "-w", "2", "-k", "uvicorn.workers.UvicornWorker", "-b", "0.0.0.0:8083", "service.main:app"]
