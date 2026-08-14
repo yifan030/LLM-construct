@@ -21,6 +21,7 @@ class EduConstructFile(Base, TimestampMixin):
     group_name: Mapped[str] = mapped_column(String(200), nullable=True)
     category: Mapped[Optional[str]] = mapped_column(String(20), nullable=True)
     paper_file_id: Mapped[Optional[str]] = mapped_column(String(200), nullable=True)
+    content_hash: Mapped[Optional[str]] = mapped_column(String(32), nullable=True)
     parsed_text_path: Mapped[str] = mapped_column(String(1000), nullable=True)
     frame_count: Mapped[int] = mapped_column(Integer, nullable=True)
     error_msg: Mapped[str] = mapped_column(Text, nullable=True)

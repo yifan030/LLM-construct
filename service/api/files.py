@@ -1,7 +1,7 @@
 # service/api/files.py
+import hashlib
 import os
 import re
-import shutil
 import tempfile
 import uuid
 from pathlib import Path
@@ -36,6 +36,7 @@ class RegisterRequest(BaseModel):
 class FileResponse(BaseModel):
     file_id: str
     status: str
+    paper_id: Optional[str] = None
 
 
 def _safe_filename(filename: Optional[str]) -> str:
@@ -56,6 +57,20 @@ def _derive_file_type(filename: str) -> Literal["video", "pdf", "image", "unknow
     if ext in {"jpg", "jpeg", "png"}:
         return "image"
     return "unknown"
+
+
+def _gen_content_hash(raw: bytes) -> str:
+    """原始文件字节 → 内容指纹（裸 32 位 hex，无前缀）。
+
+    与 llm-extract 的 ``libs.id_gen.gen_content_hash_bytes`` 保持一致，保证同一
+    原始文件在两个服务中派生出相同的 content_hash / paper_id。
+    """
+    return hashlib.md5(raw).hexdigest()
+
+
+def _paper_id_from_content_hash(content_hash: str) -> str:
+    """内容指纹 → 试卷 ID，格式 ``paper_{32 位 hex}``。"""
+    return f"paper_{content_hash}"
 
 
 def get_oss_client():
@@ -96,11 +111,18 @@ def upload_file(
         base = f"education/uploads/{category}/{paper_file_id}/{file_id}"
     oss_path = f"{base}/{safe_name}"
 
+    md5 = hashlib.md5()
     with tempfile.TemporaryDirectory(prefix=f"upload_{file_id}_") as tmpdir:
         local_tmp = Path(tmpdir) / safe_name
         with open(local_tmp, "wb") as tmp:
-            shutil.copyfileobj(file.file, tmp, length=8192)
+            while True:
+                chunk = file.file.read(1024 * 1024)
+                if not chunk:
+                    break
+                tmp.write(chunk)
+                md5.update(chunk)
         file_size = os.path.getsize(local_tmp)
+        content_hash = md5.hexdigest()
         oss_client.upload(str(local_tmp), oss_path)
 
     record = EduConstructFile(
@@ -112,12 +134,26 @@ def upload_file(
         group_name=group_name,
         category=category,
         paper_file_id=paper_file_id,
+        content_hash=content_hash,
     )
     session.add(record)
     session.commit()
 
     scheduler.enqueue(file_id=record.file_id, file_type=record.file_type, oss_path=oss_path)
-    return FileResponse(file_id=file_id, status="pending")
+
+    if category == "paper":
+        paper_id = _paper_id_from_content_hash(content_hash)
+    else:
+        # answer / answer_sheet：paper_id 指所属试卷，反查父试卷的 content_hash 推导
+        parent = (
+            session.query(EduConstructFile).filter_by(file_id=paper_file_id).first()
+        )
+        paper_id = (
+            _paper_id_from_content_hash(parent.content_hash)
+            if parent and parent.content_hash
+            else None
+        )
+    return FileResponse(file_id=file_id, status="pending", paper_id=paper_id)
 
 
 @router.post("/files/register", response_model=FileResponse)

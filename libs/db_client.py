@@ -59,6 +59,10 @@ class DatabaseClient:
                 conn.execute(text(
                     "ALTER TABLE edu_construct_files ADD COLUMN paper_file_id VARCHAR(200) NULL"
                 ))
+            if "content_hash" not in columns:
+                conn.execute(text(
+                    "ALTER TABLE edu_construct_files ADD COLUMN content_hash VARCHAR(32) NULL"
+                ))
             if "idx_category" not in indexes:
                 conn.execute(text(
                     "ALTER TABLE edu_construct_files ADD INDEX idx_category (category)"
