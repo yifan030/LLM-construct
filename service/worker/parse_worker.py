@@ -89,6 +89,10 @@ class ParseWorker:
                     md_path, frame_count = self._parse_pdf(
                         local_file, task.file_id, file_record, parsed_dir, tmpdir, session
                     )
+                elif task.file_type == "image":
+                    md_path, frame_count = self._parse_image(
+                        local_file, task.file_id, file_record, parsed_dir, tmpdir, session
+                    )
                 else:
                     raise ValueError(f"unsupported file_type: {task.file_type}")
 
@@ -234,6 +238,39 @@ class ParseWorker:
         md_path = Path(tmpdir) / f"{Path(local_file).stem}.md"
         md_path.write_text(md_content, encoding="utf-8")
         return str(md_path), len(frames)
+
+    def _parse_image(
+        self,
+        local_file: str,
+        file_id: str,
+        file_record: EduConstructFile,
+        parsed_dir: str,
+        tmpdir: str,
+        session,
+    ) -> Tuple[str, int]:
+        from service.ocr.paddle_vl_local import PaddleVlLocalAdapter
+
+        if not isinstance(self.ocr, PaddleVlLocalAdapter):
+            raise RuntimeError("image parse requires paddle-vl-local OCR provider")
+
+        self._set_status(file_record, parse_status=1, stage="ocr", progress=50)
+        session.commit()
+
+        oss_prefix = f"education/ocr_images/{file_id}"
+        pages = self.ocr.predict_markdown(
+            local_file, oss_client=self.oss, oss_prefix=oss_prefix
+        )
+
+        page_texts: List[str] = []
+        for p in pages:
+            idx = p.get("page_index", -1)
+            md = p.get("markdown", "")
+            page_texts.append(f"## Page {idx + 1}\n\n{md}\n")
+
+        md_content = "\n".join(page_texts)
+        md_path = Path(tmpdir) / f"{Path(local_file).stem}.md"
+        md_path.write_text(md_content, encoding="utf-8")
+        return str(md_path), len(pages)
 
     def _parse_pdf(
         self,
