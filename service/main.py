@@ -45,8 +45,8 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(title="llm-construct-question", lifespan=lifespan)
-app.include_router(router, prefix="/api/v1")
-app.include_router(construct_question_router, prefix="/api/v1")
+app.include_router(router, prefix="/api/edu")
+app.include_router(construct_question_router, prefix="/api/edu")
 
 
 @app.get("/health")

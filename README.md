@@ -101,7 +101,7 @@ bin/stop.sh
 
 ## API 接口
 
-基础路径：`/api/v1`
+基础路径：`/api/edu`
 
 | 方法 | 路径 | 说明 |
 |---|---|---|
@@ -117,7 +117,7 @@ bin/stop.sh
 ### 示例：上传文件
 
 ```bash
-curl -X POST "http://localhost:8000/api/v1/files/upload" \
+curl -X POST "http://localhost:8000/api/edu/files/upload" \
   -F "file=@example.mp4" \
   -F "group_name=高一数学"
 ```
@@ -134,7 +134,7 @@ curl -X POST "http://localhost:8000/api/v1/files/upload" \
 ### 示例：查询状态
 
 ```bash
-curl "http://localhost:8000/api/v1/files/{file_id}"
+curl "http://localhost:8000/api/edu/files/{file_id}"
 ```
 
 ---

@@ -2,22 +2,21 @@
   "openapi": "3.1.0",
   "info": {
     "title": "llm-construct-question",
-    "version": "0.1.0",
-    "description": "教育场景知识构建服务：接收并解析高中数学讲解视频与 PDF 文档，输出 Markdown 文本。"
+    "version": "0.1.0"
   },
   "paths": {
-    "/api/v1/files/upload": {
+    "/api/edu/files/upload": {
       "post": {
         "tags": [
           "files"
         ],
         "summary": "Upload File",
-        "operationId": "upload_file_api_v1_files_upload_post",
+        "operationId": "upload_file_api_edu_files_upload_post",
         "requestBody": {
           "content": {
             "multipart/form-data": {
               "schema": {
-                "$ref": "#/components/schemas/Body_upload_file_api_v1_files_upload_post"
+                "$ref": "#/components/schemas/Body_upload_file_api_edu_files_upload_post"
               }
             }
           },
@@ -47,13 +46,13 @@
         }
       }
     },
-    "/api/v1/files/register": {
+    "/api/edu/files/register": {
       "post": {
         "tags": [
           "files"
         ],
         "summary": "Register File",
-        "operationId": "register_file_api_v1_files_register_post",
+        "operationId": "register_file_api_edu_files_register_post",
         "requestBody": {
           "content": {
             "application/json": {
@@ -88,13 +87,13 @@
         }
       }
     },
-    "/api/v1/files/{file_id}": {
+    "/api/edu/files/{file_id}": {
       "get": {
         "tags": [
           "files"
         ],
         "summary": "Get File",
-        "operationId": "get_file_api_v1_files__file_id__get",
+        "operationId": "get_file_api_edu_files__file_id__get",
         "parameters": [
           {
             "name": "file_id",
@@ -111,9 +110,7 @@
             "description": "Successful Response",
             "content": {
               "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/FileDetail"
-                }
+                "schema": {}
               }
             }
           },
@@ -130,65 +127,13 @@
         }
       }
     },
-    "/api/v1/files/{file_id}/parse": {
-      "post": {
-        "tags": [
-          "files"
-        ],
-        "summary": "Parse File",
-        "operationId": "parse_file_api_v1_files__file_id__parse_post",
-        "parameters": [
-          {
-            "name": "file_id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "title": "File Id"
-            }
-          },
-          {
-            "name": "sync",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "type": "boolean",
-              "default": false,
-              "title": "Sync"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ParseResponse"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/v1/files/{file_id}/download": {
+    "/api/edu/files/{file_id}/download": {
       "get": {
         "tags": [
           "files"
         ],
         "summary": "Download File",
-        "operationId": "download_file_api_v1_files__file_id__download_get",
+        "operationId": "download_file_api_edu_files__file_id__download_get",
         "parameters": [
           {
             "name": "file_id",
@@ -219,8 +164,48 @@
             "description": "Successful Response",
             "content": {
               "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/DownloadResponse"
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/edu/construct-question/ocr-parse": {
+      "post": {
+        "tags": [
+          "construct_question"
+        ],
+        "summary": "在线 OCR 解析（Markdown）",
+        "description": "上传图片（jpg/png/bmp/tiff）或 PDF 文件，直接调用本地 PaddleOCR-VL 模型进行同步解析，返回每页的 markdown 文本，文档内的嵌入图片自动上传至 OSS 并替换为预签名 URL。",
+        "operationId": "ocr_parse_api_edu_construct_question_ocr_parse_post",
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_ocr_parse_api_edu_construct_question_ocr_parse_post"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OcrParseResponse"
                 }
               }
             }
@@ -247,9 +232,7 @@
             "description": "Successful Response",
             "content": {
               "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HealthResponse"
-                }
+                "schema": {}
               }
             }
           }
@@ -259,7 +242,21 @@
   },
   "components": {
     "schemas": {
-      "Body_upload_file_api_v1_files_upload_post": {
+      "Body_ocr_parse_api_edu_construct_question_ocr_parse_post": {
+        "properties": {
+          "file": {
+            "type": "string",
+            "contentMediaType": "application/octet-stream",
+            "title": "File"
+          }
+        },
+        "type": "object",
+        "required": [
+          "file"
+        ],
+        "title": "Body_ocr_parse_api_edu_construct_question_ocr_parse_post"
+      },
+      "Body_upload_file_api_edu_files_upload_post": {
         "properties": {
           "file": {
             "type": "string",
@@ -276,13 +273,35 @@
               }
             ],
             "title": "Group Name"
+          },
+          "category": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Category"
+          },
+          "paper_file_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Paper File Id"
           }
         },
         "type": "object",
         "required": [
           "file"
         ],
-        "title": "Body_upload_file_api_v1_files_upload_post"
+        "title": "Body_upload_file_api_edu_files_upload_post"
       },
       "FileResponse": {
         "properties": {
@@ -315,6 +334,59 @@
         "type": "object",
         "title": "HTTPValidationError"
       },
+      "OcrPage": {
+        "properties": {
+          "page_index": {
+            "type": "integer",
+            "title": "Page Index"
+          },
+          "markdown": {
+            "type": "string",
+            "title": "Markdown"
+          },
+          "images": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "array",
+            "title": "Images",
+            "default": []
+          }
+        },
+        "type": "object",
+        "required": [
+          "page_index",
+          "markdown"
+        ],
+        "title": "OcrPage"
+      },
+      "OcrParseResponse": {
+        "properties": {
+          "request_id": {
+            "type": "string",
+            "title": "Request Id"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "pages": {
+            "items": {
+              "$ref": "#/components/schemas/OcrPage"
+            },
+            "type": "array",
+            "title": "Pages"
+          }
+        },
+        "type": "object",
+        "required": [
+          "request_id",
+          "status",
+          "pages"
+        ],
+        "title": "OcrParseResponse"
+      },
       "RegisterRequest": {
         "properties": {
           "file_name": {
@@ -325,7 +397,8 @@
             "type": "string",
             "enum": [
               "video",
-              "pdf"
+              "pdf",
+              "image"
             ],
             "title": "File Type"
           },
@@ -354,6 +427,28 @@
               }
             ],
             "title": "Group Name"
+          },
+          "category": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Category"
+          },
+          "paper_file_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Paper File Id"
           }
         },
         "type": "object",
@@ -403,136 +498,7 @@
           "type"
         ],
         "title": "ValidationError"
-      },
-      "FileDetail": {
-        "properties": {
-          "file_id": {
-            "type": "string"
-          },
-          "file_name": {
-            "type": "string"
-          },
-          "file_type": {
-            "type": "string",
-            "enum": [
-              "video",
-              "pdf"
-            ]
-          },
-          "parse_status": {
-            "type": "integer",
-            "description": "0=pending, 1=parsing, 2=completed, 3=failed"
-          },
-          "file_storage_path": {
-            "type": "string"
-          },
-          "parsed_text_path": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ]
-          },
-          "frame_count": {
-            "anyOf": [
-              {
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ]
-          },
-          "error_msg": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ]
-          },
-          "created_at": {
-            "anyOf": [
-              {
-                "type": "string",
-                "format": "date-time"
-              },
-              {
-                "type": "null"
-              }
-            ]
-          }
-        },
-        "required": [
-          "file_id",
-          "file_name",
-          "file_type",
-          "parse_status",
-          "file_storage_path"
-        ],
-        "title": "FileDetail",
-        "type": "object"
-      },
-      "ParseResponse": {
-        "properties": {
-          "file_id": {
-            "type": "string"
-          },
-          "status": {
-            "type": "string",
-            "enum": [
-              "pending",
-              "completed"
-            ]
-          }
-        },
-        "required": [
-          "file_id",
-          "status"
-        ],
-        "title": "ParseResponse",
-        "type": "object"
-      },
-      "DownloadResponse": {
-        "properties": {
-          "file_id": {
-            "type": "string"
-          },
-          "url": {
-            "type": "string",
-            "format": "uri"
-          }
-        },
-        "required": [
-          "file_id",
-          "url"
-        ],
-        "title": "DownloadResponse",
-        "type": "object"
-      },
-      "HealthResponse": {
-        "properties": {
-          "status": {
-            "type": "string"
-          }
-        },
-        "required": [
-          "status"
-        ],
-        "title": "HealthResponse",
-        "type": "object"
       }
     }
-  },
-  "servers": [
-    {
-      "url": "http://localhost:8000",
-      "description": "Local development server"
-    }
-  ]
+  }
 }
