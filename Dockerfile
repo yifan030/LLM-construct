@@ -21,6 +21,8 @@ RUN pip install --no-cache-dir -r requirements.txt \
 
 COPY --chown=app:app . .
 
+RUN mkdir -p /home/app && chown -R app:app /home/app
+
 USER app
 
 EXPOSE 8081
